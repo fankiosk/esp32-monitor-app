@@ -1,54 +1,107 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 數據監測 App</title>
+    <title>ESP32 智慧土壤監測與控制</title>
     <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 設定字體為 Inter，並確保整體佈局舒適 */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f4f7fa; /* 淺灰色背景 */
+            background-color: #f4f7fa; 
+            /* *** 替換為使用者提供的樹苗圖片作為背景 *** */
+            background-image: url('uploaded:image_81b3a8.jpg-955dbb97-6266-4051-9254-0ee723736e41');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; /* 確保背景在滾動時固定，提升視覺效果 */
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        /* 讓按鈕的狀態變換更明顯 */
+        .sprinkler-on {
+            background-color: #10B981; /* 綠色 */
+            transition: all 0.3s;
+        }
+        .sprinkler-off {
+            background-color: #EF4444; /* 紅色 */
+            transition: all 0.3s;
+        }
+        /* 主容器樣式：增加半透明與模糊效果，提高可讀性 */
+        .app-container {
+            background-color: rgba(255, 255, 255, 0.95); /* 輕微半透明白色，確保在明亮背景上文字清晰 */
+            backdrop-filter: blur(5px); /* 輕微背景模糊效果，確保文字在圖片上清晰 */
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body>
 
     <!-- 主容器：模擬 App 視窗 -->
-    <div class="w-full max-w-sm bg-white shadow-xl rounded-2xl p-6">
+    <div class="w-full max-w-sm app-container shadow-2xl rounded-2xl p-6">
         <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">
-            🏠 物聯網家庭監控
+            🌱 智慧灌溉中心
         </h1>
+        
+        <!-- 新增氣候顯示區 -->
+        <div id="climate-display" class="bg-blue-600 text-white p-4 rounded-xl mb-4 shadow-lg text-center">
+            <p class="text-base font-semibold" id="current-location">位置: 載入中...</p>
+            <p class="text-xl font-bold" id="current-weather">氣候: 正在查詢...</p>
+        </div>
+
         <p class="text-sm text-gray-500 mb-6 text-center">
-            ESP32 數據即時顯示
+            ESP32 溫濕度監控與灑水紀錄
         </p>
 
         <!-- 數據顯示區 -->
-        <div id="data-display" class="space-y-4">
-            <!-- 溫度卡片 -->
-            <div id="temp-card" class="bg-gradient-to-r from-red-500 to-orange-500 text-white p-5 rounded-xl shadow-lg transition duration-300 ease-in-out hover:shadow-xl">
+        <div id="data-display" class="space-y-4 mb-6">
+            <!-- 土壤溫度卡片 -->
+            <div id="temp-card" class="bg-gradient-to-r from-red-600 to-red-800 text-white p-5 rounded-xl shadow-lg">
                 <div class="flex items-center justify-between">
-                    <span class="text-lg font-semibold">🌡️ 溫度</span>
+                    <span class="text-lg font-semibold">🌡️ 土壤溫度</span>
                     <span id="temperature" class="text-4xl font-extrabold">--.- °C</span>
                 </div>
             </div>
 
-            <!-- 濕度卡片 -->
-            <div id="humid-card" class="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-5 rounded-xl shadow-lg transition duration-300 ease-in-out hover:shadow-xl">
+            <!-- 土壤濕度卡片 -->
+            <div id="humid-card" class="bg-gradient-to-r from-green-500 to-teal-600 text-white p-5 rounded-xl shadow-lg">
                 <div class="flex items-center justify-between">
-                    <span class="text-lg font-semibold">💧 濕度</span>
+                    <span class="text-lg font-semibold">💧 土壤濕度</span>
                     <span id="humidity" class="text-4xl font-extrabold">--.- %</span>
                 </div>
             </div>
         </div>
+
+        <!-- 灑水控制區 -->
+        <div class="bg-gray-100 p-4 rounded-xl mb-6 shadow-inner">
+            <h2 class="text-xl font-bold text-gray-800 mb-3 text-center">水閥控制</h2>
+            <div class="flex items-center justify-between">
+                <span class="font-semibold text-gray-700">狀態:</span>
+                <span id="sprinkler-status" class="px-3 py-1 rounded-full text-sm font-bold">載入中...</span>
+            </div>
+            <button onclick="toggleSprinkler()" id="sprinkler-button" 
+                    class="w-full mt-3 py-3 text-white font-semibold rounded-lg shadow-md hover:opacity-90 transition duration-150 active:scale-95 disabled:opacity-50" disabled>
+                控制
+            </button>
+            <input type="text" id="location-input" placeholder="嘗試自動獲取位置中..." 
+                   class="w-full mt-2 p-2 border border-gray-300 rounded-lg text-sm" required disabled>
+        </div>
+
+        <!-- 灑水紀錄區 -->
+        <div class="mt-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-3 text-center">歷史灑水紀錄</h2>
+            <ul id="log-list" class="space-y-2 text-sm">
+                <li class="text-center text-gray-500">載入歷史數據...</li>
+            </ul>
+        </div>
         
-        <!-- 狀態與控制區 -->
+        <!-- 狀態與 IP 提示區 -->
         <div class="mt-6">
             <p id="status-message" class="text-center text-sm text-gray-600 mb-4">連線中...</p>
 
-            <!-- 手動刷新按鈕 -->
             <button onclick="fetchData()" id="refresh-button" 
                     class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 active:scale-95 disabled:bg-indigo-400">
                 🔄 手動刷新數據
@@ -58,58 +111,387 @@
         <!-- IP 地址提示 (供使用者修改) -->
         <p class="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg text-xs">
             <span class="font-bold">⚠️ 重要：</span> 請修改程式碼中的 `ESP32_IP_ADDRESS` 變數。
-            您需要讓 ESP32 傳回 JSON 格式數據，而非 HTML。
+            **請確保您的 ESP32 程式碼已更新並已上傳！**
         </p>
+        <p id="user-id-display" class="mt-2 text-xs text-gray-500 text-center">UserID: 載入中...</p>
     </div>
 
-    <script>
+    <script type="module">
+        // Firebase 導入 (必須使用 module type)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        setLogLevel('Debug'); // 啟用 Firestore 偵錯日誌
+
+        // --- 1. 常數與全域變數 ---
         // 【重要】請將此 IP 位址替換成您的 ESP32 實際連線後的 IP
         const ESP32_IP_ADDRESS = "192.168.1.100"; 
-        const API_URL = `http://${ESP32_IP_ADDRESS}/data`; // 假設 ESP32 提供 /data API
+        const API_URL_DATA = `http://${ESP32_IP_ADDRESS}/data`; 
+        const API_URL_TOGGLE = `http://${ESP32_IP_ADDRESS}/sprinkler/toggle`; 
 
+        const LOCATION_DEFAULT = "桃園平鎮"; // 預設位置
+        let userCoordinates = null; 
+
+        // Firebase 變數
+        let app, db, auth, userId = null;
+        let isAuthReady = false;
+        
+        // 灑水邏輯變數
+        let sprinklerState = false; 
+        let wateringStartTime = null; 
+        
+        // --- 2. DOM 元素 ---
         const tempElement = document.getElementById('temperature');
         const humidElement = document.getElementById('humidity');
         const statusElement = document.getElementById('status-message');
         const refreshButton = document.getElementById('refresh-button');
+        const sprinklerButton = document.getElementById('sprinkler-button');
+        const sprinklerStatusDisplay = document.getElementById('sprinkler-status');
+        const locationInput = document.getElementById('location-input');
+        const logList = document.getElementById('log-list');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const locationElement = document.getElementById('current-location'); // 新增
+        const weatherElement = document.getElementById('current-weather'); // 新增
+        
         let refreshInterval = null;
 
+        // --- 3. Firebase 初始化與認證 ---
+        
+        function initFirebase() {
+            try {
+                // 從環境變數獲取配置
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+                if (!firebaseConfig || !firebaseConfig.apiKey) {
+                    console.error("Firebase config is missing or invalid.");
+                    statusElement.textContent = "Firebase 設定錯誤！";
+                    return;
+                }
+
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 認證監聽器
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+                        userIdDisplay.textContent = `UserID: ${userId}`;
+                        // 認證成功後，開始監聽資料
+                        listenToWateringLogs(appId, userId);
+                        // 啟用灑水按鈕
+                        sprinklerButton.disabled = false;
+                    } else {
+                        // 首次登入或匿名登入
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error("Firebase Auth Error:", error);
+                            statusElement.textContent = "認證失敗，無法儲存紀錄。";
+                        }
+                    }
+                });
+
+                // 首次嘗試認證
+                if (!auth.currentUser) {
+                    // onAuthStateChanged 會處理登入邏輯
+                }
+
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+                statusElement.textContent = "Firebase 啟動失敗！";
+            }
+        }
+        
+        // --- 4. 灑水紀錄 Firestore 讀取/寫入 ---
+
         /**
-         * @description 模擬/實際從 ESP32 伺服器獲取數據
-         * 備註：此處假設您的 ESP32 伺服器會回傳一個 JSON 格式的數據，例如：
-         * {"temperature": 25.5, "humidity": 60.2}
+         * @description 監聽 Firestore 中的灑水紀錄 (私有路徑)
+         * @param {string} appId - 應用程式 ID
+         * @param {string} uid - 使用者 ID
+         */
+        function listenToWateringLogs(appId, uid) {
+            // 私有路徑: /artifacts/{appId}/users/{userId}/watering_logs
+            const logsCollectionRef = collection(db, `artifacts/${appId}/users/${uid}/watering_logs`);
+            
+            // 查詢最新的 10 筆紀錄
+            const q = query(logsCollectionRef); 
+
+            onSnapshot(q, (snapshot) => {
+                logList.innerHTML = ''; // 清空列表
+                if (snapshot.empty) {
+                    logList.innerHTML = '<li class="text-center text-gray-500 py-2">目前沒有灑水紀錄。</li>';
+                    return;
+                }
+
+                snapshot.docs
+                    // 根據開始時間進行排序 (在客戶端排序，避免 Firestore 索引問題)
+                    .sort((a, b) => {
+                        const timeA = a.data().startTime?.toMillis() || 0;
+                        const timeB = b.data().startTime?.toMillis() || 0;
+                        return timeB - timeA; // 最新在最前面
+                    })
+                    .slice(0, 10) // 只顯示最新的 10 筆
+                    .forEach((doc) => {
+                        const log = doc.data();
+                        const startDate = log.startTime ? log.startTime.toDate().toLocaleString('zh-TW') : 'N/A';
+                        const durationSeconds = log.durationSeconds ? log.durationSeconds.toFixed(1) : 'N/A';
+                        const volumeLiters = log.volumeLiters ? log.volumeLiters.toFixed(2) : 'N/A';
+                        const weather = log.weather || '未記錄';
+                        const location = log.location || '未知位置';
+
+                        const listItem = document.createElement('li');
+                        listItem.className = 'bg-white p-3 border border-gray-200 rounded-lg shadow-sm';
+                        listItem.innerHTML = `
+                            <p class="font-bold text-gray-800">${startDate}</p>
+                            <p class="text-xs text-gray-600">時長: <span class="font-mono text-blue-600">${durationSeconds} 秒</span>, 出水量: <span class="font-mono text-blue-600">${volumeLiters} L</span></p>
+                            <p class="text-xs text-gray-600">地點: ${location}</p>
+                            <p class="text-xs text-gray-600">天氣: ${weather}</p>
+                        `;
+                        logList.appendChild(listItem);
+                        
+                        // 使用最新的紀錄來更新氣候顯示區
+                        updateClimateDisplay(location, weather);
+                    });
+            }, (error) => {
+                console.error("Firestore Log Listen Error:", error);
+                logList.innerHTML = '<li class="text-center text-red-500 py-2">載入紀錄失敗！</li>';
+            });
+        }
+        
+        /**
+         * @description 寫入灑水結束紀錄到 Firestore
+         * @param {number} durationSeconds - 灑水持續時間（秒）
+         * @param {string} location - 使用者輸入的位置
+         */
+        async function writeWateringLog(durationSeconds, location) {
+            if (!isAuthReady || !db || !userId) {
+                console.error("Firestore not ready. Cannot save log.");
+                return;
+            }
+
+            // 1. 查詢天氣 (使用 Google Search API)
+            let weatherSummary = "天氣查詢失敗";
+            let weatherQuery;
+            let finalLocation = location || LOCATION_DEFAULT; // 預設使用手動輸入或 FALLBACK
+
+            if (userCoordinates) {
+                // 如果有座標，優先使用座標查詢天氣
+                weatherQuery = `current weather at latitude ${userCoordinates.lat.toFixed(4)} longitude ${userCoordinates.lon.toFixed(4)}`;
+                // 將位置名稱記錄為座標
+                finalLocation = `Lat: ${userCoordinates.lat.toFixed(4)}, Lon: ${userCoordinates.lon.toFixed(4)}`;
+            } else {
+                // 如果沒有座標，使用手動輸入的城市名稱查詢天氣
+                // 如果 location 為空字串，則會使用 LOCATION_DEFAULT ("桃園平鎮")
+                weatherQuery = `current weather in ${finalLocation}`;
+            }
+            
+            try {
+                // 將查詢發送到 Gemini
+                weatherSummary = await fetchWeatherFromGoogle(weatherQuery);
+                // 成功獲取天氣後，即時更新氣候顯示區
+                updateClimateDisplay(finalLocation, weatherSummary); 
+            } catch (e) {
+                console.error("Google Search Weather Fetch Failed:", e);
+                // 即使失敗也繼續儲存紀錄
+            }
+            
+            // 2. 估算水量 (假設每秒出水 0.05 升, 可自行調整)
+            const volumeLiters = durationSeconds * 0.05; 
+            
+            // 3. 寫入 Firestore
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const logsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/watering_logs`);
+                
+                await addDoc(logsCollectionRef, {
+                    startTime: wateringStartTime || serverTimestamp(), // 記錄開始時間
+                    durationSeconds: durationSeconds,
+                    volumeLiters: volumeLiters,
+                    location: finalLocation, // 使用最終的位置字串
+                    weather: weatherSummary,
+                    loggedAt: serverTimestamp() // 記錄儲存時間
+                });
+                console.log("Watering log successfully written to Firestore.");
+            } catch (e) {
+                console.error("Error writing document: ", e);
+                // 使用自定義訊息框替代 alert()
+                showCustomMessage("紀錄儲存失敗：請檢查 Firebase 安全規則和網路連線。");
+            }
+        }
+        
+        /**
+         * @description 透過 Google Search API 獲取天氣摘要
+         * @param {string} query - 查詢字串
+         * @returns {Promise<string>} 天氣摘要字串
+         */
+        async function fetchWeatherFromGoogle(query) {
+            const systemPrompt = "作為一個簡潔的天氣助手，請根據搜索結果提供一個不超過 20 個漢字的即時天氣摘要 (包含溫度和天氣狀況)。";
+            const apiKey = "" // Canvas 環境會自動提供
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            // 為了確保繁體中文和英文搜索都能進行，我們將查詢語句轉換為繁體中文和英文
+            const cnQuery = query.replace('current weather in ', '目前天氣 ').replace('current weather at latitude', '目前天氣 緯度');
+
+            const payload = {
+                contents: [{ parts: [{ text: query }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+            
+            // 如果查詢不包含座標，則發送兩個查詢（中/英），提高搜索成功率
+            if (!query.includes('latitude')) {
+                payload.tools[0].google_search.queries = [query, cnQuery];
+            } else {
+                // 如果是座標查詢，只使用英文
+                payload.tools[0].google_search.queries = [query];
+            }
+
+
+            const maxRetries = 3;
+            let delay = 1000;
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    if (text) {
+                        return text.trim();
+                    } else {
+                        return "無效的天氣數據";
+                    }
+                } catch (error) {
+                    console.warn(`Weather fetch attempt ${i + 1} failed. Retrying in ${delay / 1000}s...`, error);
+                    if (i === maxRetries - 1) {
+                        throw new Error("Weather API failed after multiple retries.");
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2; // Exponential backoff
+                }
+            }
+            return "天氣查詢失敗"; // Should be unreachable
+        }
+        
+        // --- 5. Geolocation API 處理 ---
+
+        /**
+         * @description 嘗試使用瀏覽器 Geolocation API 獲取用戶位置。
+         */
+        function getGeolocation() {
+            if (navigator.geolocation) {
+                locationInput.placeholder = '正在嘗試獲取您的位置...';
+                
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userCoordinates = {
+                            lat: position.coords.latitude,
+                            lon: position.coords.longitude
+                        };
+                        console.log("Geolocation successful:", userCoordinates);
+                        
+                        const displayLocation = `Lat: ${userCoordinates.lat.toFixed(3)}, Lon ${userCoordinates.lon.toFixed(3)}`;
+                        
+                        // 成功後鎖定輸入欄，顯示座標
+                        locationInput.placeholder = `位置已鎖定: ${displayLocation}`;
+                        locationInput.value = ""; 
+                        locationInput.disabled = true; 
+                        showCustomMessage("位置自動獲取成功，將使用精確座標記錄天氣。");
+                        
+                        // 更新氣候顯示區的位置
+                        updateClimateDisplay(displayLocation, null); 
+                        
+                        // 清除狀態提示
+                        statusElement.textContent = `連線中...`;
+                    },
+                    (error) => {
+                        console.error("Geolocation failed:", error);
+                        userCoordinates = null;
+                        
+                        // 定位失敗時，將輸入欄啟用，並使用新的預設值提示
+                        locationInput.placeholder = `獲取失敗，已預設為「${LOCATION_DEFAULT}」。請手動修改。`;
+                        locationInput.disabled = false; 
+                        locationInput.value = LOCATION_DEFAULT; // 將預設值填入輸入框，方便使用者看到
+                        
+                        // 更新氣候顯示區的位置為預設值
+                        updateClimateDisplay(LOCATION_DEFAULT, null);
+                        
+                        statusElement.textContent = '連線中...'; // 恢復狀態提示
+                        
+                        let errorMessage = `獲取位置失敗！已預設為 ${LOCATION_DEFAULT}。`;
+                        if (error.code === error.PERMISSION_DENIED) {
+                            errorMessage = "請允許瀏覽器存取您的位置以自動記錄天氣。";
+                        }
+                        showCustomMessage(errorMessage);
+                    },
+                    {
+                        enableHighAccuracy: true, // 嘗試獲取最精確的位置
+                        timeout: 5000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                locationInput.placeholder = "您的瀏覽器不支援 Geolocation API，已預設為桃園平鎮。";
+                locationInput.disabled = false;
+                locationInput.value = LOCATION_DEFAULT;
+                updateClimateDisplay(LOCATION_DEFAULT, null); // 更新氣候顯示區
+                showCustomMessage("您的瀏覽器不支援位置服務。");
+            }
+        }
+
+
+        // --- 6. ESP32 數據互動 (溫濕度與灑水狀態) ---
+
+        /**
+         * @description 獲取 ESP32 的溫濕度與灑水狀態
          */
         async function fetchData() {
-            // 避免重複點擊
             refreshButton.disabled = true;
             statusElement.textContent = '獲取數據中...';
-            statusElement.classList.remove('text-red-600');
+            statusElement.classList.remove('text-red-600', 'text-green-600');
             statusElement.classList.add('text-blue-600');
-
+            
             try {
-                // 實際發送 HTTP 請求到 ESP32
-                // 在實際專案中，您應使用 fetch(API_URL)
-                // 這裡為了演示，我們使用一個延遲和模擬數據
+                const response = await fetch(API_URL_DATA);
+                const data = await response.json(); 
                 
-                await new Promise(resolve => setTimeout(resolve, 800)); // 模擬網路延遲
-
-                // --- 模擬數據開始 (請在實際應用中刪除此區塊) ---
+                // --- 模擬數據開始 (預覽時使用) ---
+                /*
+                await new Promise(resolve => setTimeout(resolve, 800)); 
                 const mockData = {
-                    temperature: (20 + Math.random() * 10).toFixed(1),
-                    humidity: (40 + Math.random() * 30).toFixed(1)
+                    temperature: (15 + Math.random() * 15).toFixed(1),
+                    humidity: (20 + Math.random() * 70).toFixed(1),
+                    sprinklerState: sprinklerState // 使用本地狀態模擬
                 };
                 const data = mockData;
+                */
                 // --- 模擬數據結束 ---
                 
-                // 如果使用實際的 ESP32 程式碼，請改用以下兩行：
-                // const response = await fetch(API_URL);
-                // const data = await response.json(); 
-
-
                 if (data && data.temperature !== undefined && data.humidity !== undefined) {
-                    // 更新 UI 顯示
+                    // 更新環境數據
                     tempElement.textContent = `${data.temperature} °C`;
                     humidElement.textContent = `${data.humidity} %`;
-                    statusElement.textContent = `上次更新時間: ${new Date().toLocaleTimeString('zh-TW')}`;
+                    
+                    // 更新灑水狀態
+                    updateSprinklerUI(data.sprinklerState === true);
+                    
+                    statusElement.textContent = `上次更新: ${new Date().toLocaleTimeString('zh-TW')}`;
                     statusElement.classList.remove('text-blue-600');
                     statusElement.classList.add('text-green-600');
                 } else {
@@ -120,22 +502,146 @@
                 console.error("Fetch error:", error);
                 tempElement.textContent = "--.- °C";
                 humidElement.textContent = "--.- %";
+                updateSprinklerUI(false, true); // 顯示錯誤狀態
                 statusElement.textContent = '連線失敗，請檢查 ESP32 網路和 IP。';
-                statusElement.classList.remove('text-blue-600');
+                statusElement.classList.remove('text-blue-600', 'text-green-600');
                 statusElement.classList.add('text-red-600');
             } finally {
                 refreshButton.disabled = false;
             }
         }
+        
+        /**
+         * @description 透過 API 呼叫 ESP32 更改灑水狀態
+         */
+        async function toggleSprinkler() {
+            if (sprinklerButton.disabled) return;
+            
+            const location = locationInput.value.trim();
+            
+            // 只有在灑水關閉狀態 AND 沒有座標 AND 沒有手動輸入時才提示
+            if (!sprinklerState && !userCoordinates && location.length < 2) { 
+                showCustomMessage("請在開啟灑水前輸入一個有效的城市或位置名稱！");
+                return;
+            }
 
-        // 頁面載入後立即獲取數據，並設定定時刷新
+            sprinklerButton.disabled = true;
+            
+            try {
+                // 呼叫 ESP32 API 進行切換
+                const response = await fetch(API_URL_TOGGLE, { method: 'POST' });
+                
+                if (!response.ok) throw new Error("ESP32 API failed to toggle.");
+                
+                // 假設 ESP32 成功切換
+                const newState = !sprinklerState; // 預計的新狀態
+                
+                if (newState) {
+                    // 從 OFF -> ON
+                    wateringStartTime = new Date(); // 記錄開始時間
+                    showCustomMessage(`已開啟灑水！請在結束時點擊按鈕關閉。`);
+                } else {
+                    // 從 ON -> OFF (記錄灑水)
+                    const endTime = new Date();
+                    const durationSeconds = (endTime.getTime() - wateringStartTime.getTime()) / 1000;
+                    
+                    // 異步寫入紀錄
+                    writeWateringLog(durationSeconds, location); 
+                    
+                    wateringStartTime = null; // 清除開始時間
+                    showCustomMessage(`灑水已關閉！時長 ${durationSeconds.toFixed(1)} 秒，紀錄已儲存。`);
+                }
+                
+                // 更新前端狀態 (最佳做法是從 fetchData 獲取真實狀態，但這裡先預期成功)
+                updateSprinklerUI(newState);
+                
+            } catch (error) {
+                console.error("Toggle error:", error);
+                showCustomMessage('控制失敗：無法連線到 ESP32 或伺服器錯誤。');
+            } finally {
+                sprinklerButton.disabled = false;
+            }
+        }
+
+        /**
+         * @description 根據狀態更新灑水開關的 UI
+         */
+        function updateSprinklerUI(isSprinklerOn, isError = false) {
+            sprinklerState = isSprinklerOn;
+            
+            // 清除現有的狀態類別
+            sprinklerStatusDisplay.classList.remove('bg-green-600', 'bg-red-600', 'bg-gray-400');
+            sprinklerButton.classList.remove('sprinkler-on', 'sprinkler-off');
+
+            if (isError) {
+                sprinklerStatusDisplay.textContent = '連線錯誤';
+                sprinklerStatusDisplay.classList.add('bg-gray-400', 'text-white');
+                sprinklerButton.textContent = '無法控制';
+                sprinklerButton.disabled = true;
+            } else if (isSprinklerOn) {
+                sprinklerStatusDisplay.textContent = '運作中 (ON)';
+                sprinklerStatusDisplay.classList.add('bg-green-600', 'text-white');
+                sprinklerButton.textContent = '點擊關閉灑水並記錄';
+                sprinklerButton.classList.add('sprinkler-off');
+            } else {
+                sprinklerStatusDisplay.textContent = '關閉 (OFF)';
+                sprinklerStatusDisplay.classList.add('bg-red-600', 'text-white');
+                sprinklerButton.textContent = '點擊開啟灑水';
+                sprinklerButton.classList.add('sprinkler-on');
+            }
+        }
+        
+        /**
+         * @description 更新氣候顯示區的內容
+         * @param {string} location - 位置資訊
+         * @param {string} weather - 天氣摘要
+         */
+        function updateClimateDisplay(location, weather) {
+            if (location) {
+                locationElement.textContent = `位置: ${location}`;
+            }
+            if (weather) {
+                weatherElement.textContent = `氣候: ${weather}`;
+            }
+        }
+        
+        // --- 7. 輔助函式 (自定義訊息框替代 alert) ---
+        function showCustomMessage(message) {
+            // 在這裡實現一個簡單的 UI 彈出通知，而不是使用 alert()
+            // 由於這是演示，我們暫時使用 console.log 替代
+            console.log(`[通知]: ${message}`);
+            
+            // 實際產品中，您會在這裡添加一個 Tailwind CSS 樣式的訊息框
+            const oldNotification = document.getElementById('notification-box');
+            if (oldNotification) oldNotification.remove();
+
+            const notification = document.createElement('div');
+            notification.id = 'notification-box';
+            notification.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white p-3 rounded-lg shadow-2xl z-50 transition duration-300 opacity-0';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '1';
+            }, 50);
+
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+
+        // --- 8. 啟動程序 ---
         window.onload = () => {
+            initFirebase();
+            // 預設先顯示預設位置，稍後由 Geolocation 或紀錄更新
+            updateClimateDisplay(LOCATION_DEFAULT, '正在查詢...');
+            getGeolocation(); 
             fetchData();
             // 每 10 秒自動刷新一次數據
             refreshInterval = setInterval(fetchData, 10000); 
         };
         
-        // 確保在頁面卸載時清除定時器
         window.onbeforeunload = () => {
             if (refreshInterval) {
                 clearInterval(refreshInterval);
