@@ -1,0 +1,147 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 數據監測 App</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 設定字體為 Inter，並確保整體佈局舒適 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7fa; /* 淺灰色背景 */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- 主容器：模擬 App 視窗 -->
+    <div class="w-full max-w-sm bg-white shadow-xl rounded-2xl p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">
+            🏠 物聯網家庭監控
+        </h1>
+        <p class="text-sm text-gray-500 mb-6 text-center">
+            ESP32 數據即時顯示
+        </p>
+
+        <!-- 數據顯示區 -->
+        <div id="data-display" class="space-y-4">
+            <!-- 溫度卡片 -->
+            <div id="temp-card" class="bg-gradient-to-r from-red-500 to-orange-500 text-white p-5 rounded-xl shadow-lg transition duration-300 ease-in-out hover:shadow-xl">
+                <div class="flex items-center justify-between">
+                    <span class="text-lg font-semibold">🌡️ 溫度</span>
+                    <span id="temperature" class="text-4xl font-extrabold">--.- °C</span>
+                </div>
+            </div>
+
+            <!-- 濕度卡片 -->
+            <div id="humid-card" class="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-5 rounded-xl shadow-lg transition duration-300 ease-in-out hover:shadow-xl">
+                <div class="flex items-center justify-between">
+                    <span class="text-lg font-semibold">💧 濕度</span>
+                    <span id="humidity" class="text-4xl font-extrabold">--.- %</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 狀態與控制區 -->
+        <div class="mt-6">
+            <p id="status-message" class="text-center text-sm text-gray-600 mb-4">連線中...</p>
+
+            <!-- 手動刷新按鈕 -->
+            <button onclick="fetchData()" id="refresh-button" 
+                    class="w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 active:scale-95 disabled:bg-indigo-400">
+                🔄 手動刷新數據
+            </button>
+        </div>
+
+        <!-- IP 地址提示 (供使用者修改) -->
+        <p class="mt-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg text-xs">
+            <span class="font-bold">⚠️ 重要：</span> 請修改程式碼中的 `ESP32_IP_ADDRESS` 變數。
+            您需要讓 ESP32 傳回 JSON 格式數據，而非 HTML。
+        </p>
+    </div>
+
+    <script>
+        // 【重要】請將此 IP 位址替換成您的 ESP32 實際連線後的 IP
+        const ESP32_IP_ADDRESS = "192.168.1.100"; 
+        const API_URL = `http://${ESP32_IP_ADDRESS}/data`; // 假設 ESP32 提供 /data API
+
+        const tempElement = document.getElementById('temperature');
+        const humidElement = document.getElementById('humidity');
+        const statusElement = document.getElementById('status-message');
+        const refreshButton = document.getElementById('refresh-button');
+        let refreshInterval = null;
+
+        /**
+         * @description 模擬/實際從 ESP32 伺服器獲取數據
+         * 備註：此處假設您的 ESP32 伺服器會回傳一個 JSON 格式的數據，例如：
+         * {"temperature": 25.5, "humidity": 60.2}
+         */
+        async function fetchData() {
+            // 避免重複點擊
+            refreshButton.disabled = true;
+            statusElement.textContent = '獲取數據中...';
+            statusElement.classList.remove('text-red-600');
+            statusElement.classList.add('text-blue-600');
+
+            try {
+                // 實際發送 HTTP 請求到 ESP32
+                // 在實際專案中，您應使用 fetch(API_URL)
+                // 這裡為了演示，我們使用一個延遲和模擬數據
+                
+                await new Promise(resolve => setTimeout(resolve, 800)); // 模擬網路延遲
+
+                // --- 模擬數據開始 (請在實際應用中刪除此區塊) ---
+                const mockData = {
+                    temperature: (20 + Math.random() * 10).toFixed(1),
+                    humidity: (40 + Math.random() * 30).toFixed(1)
+                };
+                const data = mockData;
+                // --- 模擬數據結束 ---
+                
+                // 如果使用實際的 ESP32 程式碼，請改用以下兩行：
+                // const response = await fetch(API_URL);
+                // const data = await response.json(); 
+
+
+                if (data && data.temperature !== undefined && data.humidity !== undefined) {
+                    // 更新 UI 顯示
+                    tempElement.textContent = `${data.temperature} °C`;
+                    humidElement.textContent = `${data.humidity} %`;
+                    statusElement.textContent = `上次更新時間: ${new Date().toLocaleTimeString('zh-TW')}`;
+                    statusElement.classList.remove('text-blue-600');
+                    statusElement.classList.add('text-green-600');
+                } else {
+                    throw new Error("Invalid data format received.");
+                }
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                tempElement.textContent = "--.- °C";
+                humidElement.textContent = "--.- %";
+                statusElement.textContent = '連線失敗，請檢查 ESP32 網路和 IP。';
+                statusElement.classList.remove('text-blue-600');
+                statusElement.classList.add('text-red-600');
+            } finally {
+                refreshButton.disabled = false;
+            }
+        }
+
+        // 頁面載入後立即獲取數據，並設定定時刷新
+        window.onload = () => {
+            fetchData();
+            // 每 10 秒自動刷新一次數據
+            refreshInterval = setInterval(fetchData, 10000); 
+        };
+        
+        // 確保在頁面卸載時清除定時器
+        window.onbeforeunload = () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        };
+
+    </script>
+</body>
+</html>
